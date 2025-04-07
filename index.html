@@ -216,6 +216,227 @@
   </style>
 </head>
 <body>
-  <!-- [Keep your existing HTML structure inside <body> here] -->
+   <div class="container">
+      <h1>DASHBOARD - MACHINE PARAMETERS</h1>
+
+      <div class="input-group">
+          <label for="material"><h3>Material:</h3></label>
+          <div class="radio-group">
+              <input type="radio" id="AA1100" name="material" value="AA1100" onclick="displayResponse()"> AA1100
+              <input type="radio" id="Al5052" name="material" value="Al5052" onclick="displayResponse()"> Al5052
+              <input type="radio" id="Al6061" name="material" value="Al6061" onclick="displayResponse()"> Al6061
+          </div>
+      </div>
+
+      <h3>Controllable Parameters</h3>
+
+      <div class="input-row">
+          <div class="input-group">
+              <label for="spindleSpeed">Spindle Speed (rpm):</label>
+              <input type="text" id="spindleSpeed" name="spindleSpeed">
+          </div>
+          <div class="input-group">
+              <label for="feedRate">Feed Rate (mm/min):</label>
+              <input type="text" id="feedRate" name="feedRate">
+          </div>
+          <div class="input-group">
+              <label for="depthOfCut">Depth of Cut (mm):</label>
+              <input type="text" id="depthOfCut" name="depthOfCut">
+          </div>
+          <div class="input-group">
+              <label for="coolantFlow">Coolant Flow (L/min):</label>
+              <input type="text" id="coolantFlow" name="coolantFlow">
+          </div>
+          <button style="background-color:rgb(77, 179, 252);" class="button" onclick="clearInputs()">Clear</button>
+      </div>
+
+      <center>
+          <button class="button" onclick="calculateSurfaceRoughness()">Calculate Surface Roughness</button>
+          <button class="button" onclick="calculateMaterialRemovalRate()">Calculate Material Removal Rate</button>
+      </center>
+
+      <h3>Results:</h3>
+      <div class="result-container">
+          <div class="result-box" id="mrrResultBox">
+              <div class="label" id="mrrResultLabel">Material Removal Rate</div>
+              <div class="result" id="mrrResultValue">Not Calculated Yet</div>
+          </div>
+
+          <div class="surface-roughness-box" id="surfaceRoughnessBox">
+              <div class="label" id="raResultLabel">Surface Roughness (Ra)</div>
+              <div class="result" id="raResultValue">Not Calculated Yet</div>
+          </div>
+      </div>
+
+      <div class="response-group" id="responseGroup" style="display:none;">
+          <div class="response-box" id="response1">
+              <div class="response-heading">Response 1: Surface Area (Ra)</div>
+              <div class="range-values">
+                  <div class="min" id="minRa">Min: 2.165 μm</div>
+                  <div class="max" id="maxRa">Max: 5.166 μm</div>
+              </div>
+          </div>
+          <div class="response-box" id="response2">
+              <div class="response-heading">Response 2: Material Removal</div>
+              <div class="range-values">
+                  <div class="min" id="minMrr">Min: 115.663 mm<sup>3</sup>/min</div>
+                  <div class="max" id="maxMrr">Max: 251.327 mm<sup>3</sup>/min</div>
+              </div>
+          </div>
+      </div>
+
+      <button class="button" onclick="storeData()">Save Data</button>
+      <div class="bt"><button onclick="downloadPDF()">Download PDF</button></div>
+      <br><br><br>
+
+      <div id="alertMessage" class="alert-message"></div>
+      <div id="calculatingMessage" class="calculating-message">Calculating... Please wait.</div>
+  </div>
+
+  <script>
+      function displayResponse() {
+          document.getElementById('responseGroup').style.display = 'flex';
+          document.getElementById('alertMessage').style.display = 'none';
+          document.getElementById('mrrResultBox').style.display = 'none';
+          document.getElementById('calculatingMessage').style.display = 'block';
+          document.getElementById('surfaceRoughnessBox').style.display = 'block';
+
+          let material = document.querySelector('input[name="material"]:checked').value;
+          updateRaMrrRanges(material);
+          calculateSurfaceRoughness();
+          calculateMaterialRemovalRate();
+      }
+
+      function updateRaMrrRanges(material) {
+          if (material === 'AA1100') {
+              document.getElementById('minRa').innerHTML = 'Min: 2.165 μm';
+              document.getElementById('maxRa').innerHTML = 'Max: 5.166 μm';
+              document.getElementById('minMrr').innerHTML = 'Min: 115.663 mm<sup>3</sup>/min';
+              document.getElementById('maxMrr').innerHTML = 'Max: 251.327 mm<sup>3</sup>/min';
+          } else if (material === 'Al5052') {
+              document.getElementById('minRa').innerHTML = 'Min: 0.125 μm';
+              document.getElementById('maxRa').innerHTML = 'Max: 0.589 μm';
+              document.getElementById('minMrr').innerHTML = 'Min: 92.95 mm<sup>3</sup>/min';
+              document.getElementById('maxMrr').innerHTML = 'Max: 180.29 mm<sup>3</sup>/min';
+          } else if (material === 'Al6061') {
+              document.getElementById('minRa').innerHTML = 'Min: 0.274 μm';
+              document.getElementById('maxRa').innerHTML = 'Max: 0.99 μm';
+              document.getElementById('minMrr').innerHTML = 'Min: 241.12 mm<sup>3</sup>/min';
+              document.getElementById('maxMrr').innerHTML = 'Max: 871.2 mm<sup>3</sup>/min';
+          }
+      }
+
+      function calculateSurfaceRoughness() {
+          var s = parseFloat(document.getElementById('spindleSpeed').value);
+          var f = parseFloat(document.getElementById('feedRate').value);
+          var d = parseFloat(document.getElementById('depthOfCut').value);
+          var c = parseFloat(document.getElementById('coolantFlow').value);
+
+          var material = document.querySelector('input[name="material"]:checked').value;
+          var ra, minRa, maxRa;
+
+          if (material === 'AA1100') {
+              ra = -2.62 + 0.00274 * s + 0.0368 * f + 17.6 * d - 0.009 * c;
+              minRa = 2.165; maxRa = 5.166;
+          } else if (material === 'Al5052') {
+              ra = 2.1 * (s / f) * d;
+              minRa = 0.125; maxRa = 0.589;
+          } else if (material === 'Al6061') {
+              ra = 1.00 - 0.000755 * s + 0.00713 * f - 0.320 * d + 0.00214 * c;
+              minRa = 0.274; maxRa = 0.99;
+          }
+
+          if (ra < minRa || ra > maxRa) {
+              document.getElementById('alertMessage').style.display = 'block';
+              document.getElementById('alertMessage').innerHTML = 'Surface Roughness is out of range!';
+          }
+
+          document.getElementById('raResultValue').innerHTML = ra.toFixed(3) + ' μm';
+          document.getElementById('calculatingMessage').style.display = 'none';
+      }
+
+      function calculateMaterialRemovalRate() {
+          var s = parseFloat(document.getElementById('spindleSpeed').value);
+          var f = parseFloat(document.getElementById('feedRate').value);
+          var d = parseFloat(document.getElementById('depthOfCut').value);
+          var c = parseFloat(document.getElementById('coolantFlow').value);
+
+          var material = document.querySelector('input[name="material"]:checked').value;
+          var mrr, minMrr, maxMrr;
+
+          if (material === 'AA1100') {
+              mrr = 0.3 * s * f * d;
+              minMrr = 115.663; maxMrr = 251.327;
+          } else if (material === 'Al5052') {
+              mrr = 0.2 * s * f * d;
+              minMrr = 92.95; maxMrr = 180.29;
+          } else if (material === 'Al6061') {
+              mrr = 853 - 0.664 * s + 6.77 * f - 237 * d + 2.03 * c;
+              minMrr = 241.12; maxMrr = 871.2;
+          }
+
+          if (mrr < minMrr || mrr > maxMrr) {
+              document.getElementById('alertMessage').style.display = 'block';
+              document.getElementById('alertMessage').innerHTML = 'Material Removal Rate is out of range!';
+          }
+
+          document.getElementById('mrrResultValue').innerHTML = mrr.toFixed(3) + ' mm³/min';
+          document.getElementById('calculatingMessage').style.display = 'none';
+          document.getElementById('mrrResultBox').style.display = 'block';
+      }
+
+      function clearInputs() {
+          document.getElementById('spindleSpeed').value = '';
+          document.getElementById('feedRate').value = '';
+          document.getElementById('depthOfCut').value = '';
+          document.getElementById('coolantFlow').value = '';
+          document.getElementById('mrrResultValue').innerHTML = 'Not Calculated Yet';
+          document.getElementById('raResultValue').innerHTML = 'Not Calculated Yet';
+          document.getElementById('alertMessage').style.display = 'none';
+          document.getElementById('mrrResultBox').style.display = 'none';
+          document.getElementById('surfaceRoughnessBox').style.display = 'none';
+          document.getElementById('calculatingMessage').style.display = 'none';
+          let radios = document.getElementsByName('material');
+          for (let i = 0; i < radios.length; i++) {
+              radios[i].checked = false;
+          }
+          document.getElementById('responseGroup').style.display = 'none';
+      }
+
+      function storeData() {
+          var material = document.querySelector('input[name="material"]:checked').value;
+          var spindleSpeed = document.getElementById('spindleSpeed').value;
+          var feedRate = document.getElementById('feedRate').value;
+          var depthOfCut = document.getElementById('depthOfCut').value;
+          var coolantFlow = document.getElementById('coolantFlow').value;
+          var surfaceRoughness = document.getElementById('raResultValue').innerText.replace(" μm", "");
+          var materialRemovalRate = document.getElementById('mrrResultValue').innerText.replace(" mm³/min", "");
+
+          var data = {
+              material: material,
+              spindleSpeed: spindleSpeed,
+              feedRate: feedRate,
+              depthOfCut: depthOfCut,
+              coolantFlow: coolantFlow,
+              surfaceRoughness: surfaceRoughness,
+              materialRemovalRate: materialRemovalRate
+          };
+
+          fetch('/store_data', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(data)
+          })
+          .then(response => response.json())
+          .then(data => {
+              alert(data.message);
+          })
+          .catch(error => console.error('Error:', error));
+      }
+
+      function downloadPDF() {
+          window.location.href = '/download_pdf';
+      }
+  </script>
 </body>
 </html>
